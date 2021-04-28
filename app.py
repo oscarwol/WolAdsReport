@@ -1,6 +1,6 @@
 from selenium.webdriver import Firefox
 from selenium.webdriver.firefox.options import Options
-from openpyxl import load_workbook
+from openpyxl import load_workbook, Workbook
 import os
 import time
 from pptx import Presentation
@@ -20,7 +20,7 @@ def MensajeI():
     / /_\ \  __| || |_/ / ___  _ __    ___   _ __ | |_ 
     |  _  | / _` ||    / / _ \| '_ \  / _ \ | '__|| __|
     | | | || (_| || |\ \|  __/| |_) || (_) || |   | |_ 
-    \_| |_/ \__,_|\_| \_|\___|| .__/  \___/ |_|    \__| v 1.1
+    \_| |_/ \__,_|\_| \_|\___|| .__/  \___/ |_|    \__| v 1.2
                             | |                      
                             |_|                      
     """
@@ -30,13 +30,11 @@ def MensajeI():
     print ("*********************************************************************\n")
 
 
-
-
 def MenuP():
     MensajeI()
     print("Ingresa la opcion solicitada: ")
-    print("1) Descargar data desde Facebook Ad Library ")
-    print("2) Descargar información desde AdQuality (Archivo Excel)")
+    print("1) Descargar data desde Facebook Ad Library (Archivo Excel) ")
+    print("2) Generar presentacion desde un Archivo de Excel")
     txt = input()
     if txt == "1": 
         print("Ingresa el termino a buscar")
@@ -46,8 +44,6 @@ def MenuP():
         print("Ingresa el nombre del archivo excel (este debe estar dentro de la carpeta, recuerda la extension .xlsx)")
         exc = input()
         DescargarExcel(exc)
-
-
 
 def getsizes(uri):
     file = urlopen(uri)
@@ -128,8 +124,10 @@ def DescargarExcel(archivo):
             else:
                 try:
                     print("Descargando Imagen de:"+img)
-                    path = DescargarArchivo("imagen","https:"+img,-1)
+                    if not 'https:' in img:
+                        img = "https:"+img
                     try:
+                        path = DescargarArchivo("imagen",img,-1)
                         a = getsizes("https:"+img)[1][0] / 96
                         b = getsizes("https:"+img)[1][1] / 96
                         imga=slide.shapes.add_picture(path,left,top,width=Inches(a), height=Inches(b))
@@ -137,7 +135,7 @@ def DescargarExcel(archivo):
                 except Exception as e:
                     try:
                         print("Descargando video de:"+img)
-                        path = DescargarArchivo("video","https:"+img,-1)
+                        path = DescargarArchivo("video",img,-1)
                         img=slide.shapes.add_movie(path,left,top,width=Inches(5), height=Inches(5),poster_frame_image=None, mime_type='video/mp4')
                     except:
                             print("Ocurrio un error al descargar el siguiente video: "+img)
@@ -146,6 +144,7 @@ def DescargarExcel(archivo):
         print("Se guardó la presentación en el siguiente directorio: "+diract+"/AdReport.pptx")        
         prs.save(diract+"/AdReport.pptx") # saving file
     except: print("Ocurrio un error al intentar descargar el archivo excel, intentalo nuevamente")
+
 
 anuncios = []
 def ObtenerDataFacebook(dato):
@@ -200,64 +199,32 @@ def ObtenerDataFacebook(dato):
     mes = browser.find_element_by_css_selector("._99s9 .l61y9joe").text
     browser.close()
     print("Informacion obtenida exitosamente ")        
-    prs=Presentation()
-    blank_slide_layout = prs.slide_layouts[0]
-    slide = prs.slides.add_slide(blank_slide_layout)
-    title=slide.shapes.title # assigning a title
-    subtitle=slide.placeholders[1] # placeholder for subtitle
-    title.text="Reporte de Facebook Ads Library para '"+busqueda+"'"
-    subtitle.text=mes+"- Generado automaticamente por AdReport v1.0"
-    for i in anuncios:    
-        blank_slide_layout = prs.slide_layouts[0]
-        slide = prs.slides.add_slide(blank_slide_layout)
-        title=slide.shapes.title
-        subtitle=slide.placeholders[1] 
-        title.text=" "
-        subtitle.text=" "
-        fecha = slide.shapes.add_textbox(Inches(1),Inches(0.2),width=Inches(2), height=Inches(0.5))
-        fecha.text = i.getFecha()
-        desc = slide.shapes.add_textbox(Inches(1),Inches(0.7),width=Inches(8.8), height=Inches(1.19))
-        p = desc.text_frame
-        para = p.add_paragraph()
-        p.word_wrap = True
-        para.text = i.getDescription()
-        para.font.size = Pt(12)
-        if i.getTipo() == "Imagen":
-            path = DescargarArchivo("imagen",i.getMedia(),-1)
-            left=Inches(1)
-            top=Inches(2)
-            try:
-                img=slide.shapes.add_picture(path,left,top,width=Inches(5), height=Inches(5))
-                print("Descargando Imagen de:"+i.getMedia())
-            except:
-                print("ERROR")
-                pass
-        elif i.getTipo() == "Video":
-            path = DescargarArchivo("video",i.getMedia(),-1)
-            left=Inches(1)
-            top=Inches(2)
-            try:
-                img=slide.shapes.add_movie(path,left,top,width=Inches(5), height=Inches(5),poster_frame_image=None, mime_type='video/mp4')
-                print("Descargando Video de:"+i.getMedia())
-            except: pass
+    print("Generando archivo Excel") 
+    if os.path.exists(diract+"\AdsReport.xlsx"):
+        wb = load_workbook(diract+"\AdsReport.xlsx")
+        ws = wb.create_sheet(title=dato)
+    else: 
+        wb = Workbook()
+        ws = wb.active
+        ws.title = dato
 
-        pathAuth = DescargarArchivo("imagen",i.getAuthMedia(),-1)
-        left=Inches(6.6)
-        top=Inches(4)
-        try:
-            desca = slide.shapes.add_textbox(Inches(6.5),Inches(3.5),width=Inches(1), height=Inches(1)).text = "Anunciante:"
-            desc = slide.shapes.add_textbox(Inches(7.9),Inches(4),width=Inches(1), height=Inches(1))
-            img=slide.shapes.add_picture(pathAuth,left,top,width=Inches(1), height=Inches(1))
-            p = desc.text_frame
-            para = p.add_paragraph()
-            p.word_wrap = True
-            para.text = i.getAuthTexto()
-            para.font.size = Pt(12)
-        except:
-            print("ERROR")
-            pass
-    print("Se guardó la presentación en el siguiente directorio: "+diract+"/AdReport.pptx")        
-    prs.save(diract+"/AdReport.pptx") # saving file 
+    cn=1
+    for i in anuncios:    
+        fecha = i.getFecha()
+        desc = i.getDescription()
+        img = i.getMedia()
+        auth = i.getAuthTexto()
+        ws['A'+str(cn)] = auth
+        ws['B'+str(cn)] = img
+        ws['C'+str(cn)] = " " # Esta columna se agrea por motivos de orden únicamente
+        ws['D'+str(cn)] = fecha
+        cn+=1
+    ws.column_dimensions["A"].width = 25
+    ws.column_dimensions["B"].width = 20
+    ws.column_dimensions["C"].width = 5
+    ws.column_dimensions["D"].width = 30
+    wb.save(filename = diract+'/AdsReport.xlsx')
+    print("Archivo de Excel generado exitosamente en: "+diract+'/AdsReport.xlsx') 
 
 if __name__ == '__main__':
     MenuP()
